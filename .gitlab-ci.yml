@@ -1,0 +1,40 @@
+stages:
+  - sync
+
+variables:
+  GITLAB_USER_EMAIL: trent.leslie@phenomehealth.org
+  GITHUB_USER_EMAIL: trentleslie@gmail.com
+  GIT_STRATEGY: clone
+  GIT_DEPTH: 0
+
+sync_gitlab_to_github:
+  stage: sync
+  image: python:3.10
+  tags:
+    - docker
+  before_script:
+    - apt-get update && apt-get install -y openssh-client git
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+    - git config --global user.email "$GITHUB_USER_EMAIL"
+    - git config --global user.name "Trent Leslie"
+    - git remote remove github || true
+    - git remote add github git@github.com:trentleslie/AI-Scientist.git
+  script:
+    - python --version
+    - git fetch --all --prune
+    - git checkout -B temp_branch origin/main
+    - |
+      if git push -f github temp_branch:main; then
+        echo "Successfully pushed to GitHub main branch."
+      else
+        echo "Failed to push to GitHub. There might be an issue with permissions or network."
+        exit 1
+      fi
+    - git checkout -B main origin/main  # This line ensures you checkout the remote main branch explicitly
+    - git branch -D temp_branch
+  only:
+    - main
